@@ -620,6 +620,13 @@ html, body {
           <button type="button" class="btn-test-voice" id="btn-test-ontime" title="音声テスト">🔊</button>
         </div>
       </div>
+      <div class="form-group full-width">
+        <label for="input-done-message">完了メッセージ</label>
+        <div class="input-with-test">
+          <input type="text" id="input-done-message" placeholder="例：やったね！えらい！すごい！" maxlength="50">
+          <button type="button" class="btn-test-voice" id="btn-test-done" title="音声テスト">🔊</button>
+        </div>
+      </div>
     </div>
     <div class="form-actions">
       <button id="btn-save-event" class="btn btn-success">💾 保存</button>
@@ -725,7 +732,7 @@ function saveEvents(events) {
 
 // ---- CRUD ----
 
-function createEvent({ name, time, days, alertBefore, preMessage, onTimeMessage }) {
+function createEvent({ name, time, days, alertBefore, preMessage, onTimeMessage, doneMessage }) {
   const events = loadEvents();
   const ev = {
     id: Date.now().toString(),
@@ -735,6 +742,7 @@ function createEvent({ name, time, days, alertBefore, preMessage, onTimeMessage 
     alertBefore,    // number（分）
     preMessage,
     onTimeMessage,
+    doneMessage,
     enabled: true,
   };
   events.push(ev);
@@ -1253,6 +1261,7 @@ const $time        = document.getElementById('input-time');
 const $alertBefore = document.getElementById('input-alert-before');
 const $preMsg      = document.getElementById('input-pre-message');
 const $ontimeMsg   = document.getElementById('input-ontime-message');
+const $doneMsg     = document.getElementById('input-done-message');
 const $days        = document.querySelectorAll('.day-selector input[type=checkbox]');
 const $btnEveryday = document.getElementById('btn-everyday');
 const $btnSave     = document.getElementById('btn-save-event');
@@ -1366,6 +1375,7 @@ $btnSave.addEventListener('click', () => {
   const alertBefore   = Number($alertBefore.value);
   const preMessage    = $preMsg.value.trim();
   const onTimeMessage = $ontimeMsg.value.trim();
+  const doneMessage   = $doneMsg.value.trim();
 
   if (!name)          { alert('イベント名を入力してください'); return; }
   if (!time)          { alert('時刻を選択してください'); return; }
@@ -1374,11 +1384,11 @@ $btnSave.addEventListener('click', () => {
   if (!onTimeMessage) { alert('時刻ちょうどのメッセージを入力してください'); return; }
 
   if (_editingId) {
-    updateEvent(_editingId, { name, time, days, alertBefore, preMessage, onTimeMessage });
+    updateEvent(_editingId, { name, time, days, alertBefore, preMessage, onTimeMessage, doneMessage });
     removeDone(_editingId);   // 完了済みフラグを解除 → 新しい時刻で再発火できるようにする
     _editingId = null;
   } else {
-    createEvent({ name, time, days, alertBefore, preMessage, onTimeMessage });
+    createEvent({ name, time, days, alertBefore, preMessage, onTimeMessage, doneMessage });
   }
 
   // イベント変更 → 通知フラグをリセット（再通知を有効化）
@@ -1399,6 +1409,7 @@ function _resetForm() {
   $alertBefore.value = '10';
   $preMsg.value      = '';
   $ontimeMsg.value   = '';
+  $doneMsg.value     = '';
   $days.forEach(cb => { cb.checked = false; });
   $formTitle.textContent     = '➕ イベントを追加';
   $btnCancel.style.display   = 'none';
@@ -1416,6 +1427,7 @@ function startEdit(id) {
   $alertBefore.value     = String(ev.alertBefore);
   $preMsg.value          = ev.preMessage;
   $ontimeMsg.value       = ev.onTimeMessage;
+  $doneMsg.value         = ev.doneMessage ?? '';
   $days.forEach(cb => { cb.checked = ev.days.includes(Number(cb.value)); });
   $formTitle.textContent   = '✏️ イベントを編集';
   $btnCancel.style.display = '';
@@ -1642,13 +1654,14 @@ async function _playKirakira() {
 }
 // ---- やったね！ ----
 function _showYattane() {
+  const ev  = _currentNext ? _currentNext.event : null;
+  const msg = (ev && ev.doneMessage) ? ev.doneMessage : 'やったね！えらい！すごい！';
   _advanceChara();
   $yattaneChara.src = _currentChara.alert;
   _launchConfetti();
   $yattaneOverlay.classList.remove('hidden');
   _playKirakira();
-  speak('やったね！えらい！すごい！', 'normal');
-  // やったね画面を閉じた後 setPhase('normal') で _currentChara.normal が反映される
+  speak(msg, 'normal');
 }
 
 $btnCloseYattane.addEventListener('click', () => {
@@ -1693,6 +1706,7 @@ function _setupTestBtn(btnId, inputEl, mood) {
 }
 _setupTestBtn('btn-test-pre',    $preMsg,    'alert');
 _setupTestBtn('btn-test-ontime', $ontimeMsg, 'panic');
+_setupTestBtn('btn-test-done',   $doneMsg,   'normal');
 
 // ---- 通知フラグリセットボタン ----
 document.getElementById('btn-reset-fired').addEventListener('click', () => {
