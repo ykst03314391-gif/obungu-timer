@@ -1177,6 +1177,8 @@ function setPhase(phase) {
 function setCharImg(src) {
   if ($charImg.dataset.src === src) return;
   $charImg.dataset.src = src;
+  $charImg.style.display = '';
+  $charFallback.style.display = 'none';
   $charImg.src = src;
 }
 
