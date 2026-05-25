@@ -1180,11 +1180,32 @@ function setCharImg(src) {
   $charImg.src = src;
 }
 
+// ---- 効果音 ----
+let _sfxCtx = null;
+function _getSfxCtx() {
+  if (!_sfxCtx) _sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _sfxCtx;
+}
+async function _playSound(path) {
+  try {
+    const ctx = _getSfxCtx();
+    if (ctx.state === 'suspended') await ctx.resume();
+    const res = await fetch(path);
+    const buf = await res.arrayBuffer();
+    const audio = await ctx.decodeAudioData(buf);
+    const src = ctx.createBufferSource();
+    src.buffer = audio;
+    src.connect(ctx.destination);
+    src.start();
+  } catch(e) { console.warn('[sfx]', e); }
+}
+
 // ---- 起動オーバーレイ ----
 $startupImg.src = CHARA.normal;
 $startupImg.onerror = () => { $startupImg.style.display = 'none'; };
 
 $startup.addEventListener('click', () => {
+  _getSfxCtx(); // iOSのAudioContext初期化（ユーザー操作が必要）
   $startup.classList.add('hidden');
   startTimer(_handleTick);
 }, { once: true });
@@ -1418,6 +1439,7 @@ $btnDoneEarly.addEventListener('click', () => {
     _junbiDone.delete(_currentNext.event.id);
   }
   $btnDoneEarly.classList.add('hidden');
+  _playSound('./sounds/kira.mp3');
   setPhase('normal');
   _showYattane();
 });
@@ -1429,11 +1451,13 @@ $btnDone.addEventListener('click', () => {
   if (_phase === 'alert') {
     // 準備完了：normalに戻す（イベントは完了しない → 設定時刻にontimeが発火する）
     if (_currentNext) _junbiDone.add(_currentNext.event.id);
+    _playSound('./sounds/yeah.mp3');
     setPhase('normal');
     _showJunbi();
   } else {
     // できた！：イベントを完了マーク
     if (_currentNext) markEventDone(_currentNext.event.id);
+    _playSound('./sounds/kira.mp3');
     setPhase('normal');
     _showYattane();
   }
