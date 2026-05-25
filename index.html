@@ -1498,6 +1498,7 @@ $btnDone.addEventListener('click', () => {
   } else {
     // できた！：イベントを完了マーク
     if (_currentNext) markEventDone(_currentNext.event.id);
+    _stopBgm();
     _playSound('./sounds/kira.mp3');
     setPhase('normal');
     _showYattane();
