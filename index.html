@@ -699,7 +699,7 @@ html, body {
       <div id="confetti-area" class="confetti-area"></div>
       <img id="yattane-chara" src="" alt="キャラクター" class="yattane-chara">
       <div class="yattane-text">やったね！</div>
-      <div class="yattane-sub">えらい！すごい！</div>
+      <div id="yattane-sub" class="yattane-sub">えらい！すごい！</div>
       <button id="btn-close-yattane" class="btn btn-primary btn-large">とじる</button>
     </div>
   </div>
@@ -1655,7 +1655,8 @@ async function _playKirakira() {
 // ---- やったね！ ----
 function _showYattane() {
   const ev  = _currentNext ? _currentNext.event : null;
-  const msg = (ev && ev.doneMessage) ? ev.doneMessage : 'やったね！えらい！すごい！';
+  const msg = (ev && ev.doneMessage) ? ev.doneMessage : 'えらい！すごい！';
+  document.getElementById('yattane-sub').textContent = msg;
   _advanceChara();
   $yattaneChara.src = _currentChara.alert;
   _launchConfetti();
