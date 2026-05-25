@@ -944,7 +944,11 @@ function stopBgm() {
 let _jaVoice = null;
 
 const PREFERRED_KEYWORDS = [
-  'haruka', 'nanami', 'kyoko', 'ayumi', 'mizuki', 'female',
+  'o-ren', 'oren',          // iOS 16+ 高品質
+  'hattori',                 // iOS 16+ 高品質（男性）
+  'haruka', 'nanami',        // Windows / 旧 iOS
+  'kyoko', 'ayumi', 'mizuki',
+  'female',
 ];
 
 function initSpeech() {
@@ -989,18 +993,18 @@ function speak(text, mood = 'normal') {
 
   switch (mood) {
     case 'alert':
-      utter.rate   = 0.78;
-      utter.pitch  = 1.28;
+      utter.rate   = 0.92;
+      utter.pitch  = 1.08;
       utter.volume = 0.95;
       break;
     case 'panic':
-      utter.rate   = 0.85;
-      utter.pitch  = 1.32;
+      utter.rate   = 0.98;
+      utter.pitch  = 1.05;
       utter.volume = 1.0;
       break;
     default: // normal
-      utter.rate   = 0.72;
-      utter.pitch  = 1.25;
+      utter.rate   = 0.88;
+      utter.pitch  = 1.05;
       utter.volume = 0.90;
   }
 
