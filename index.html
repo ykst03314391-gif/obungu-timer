@@ -314,6 +314,12 @@ html, body {
   color: #555;
   min-height: 1.6em;
 }
+.event-time {
+  font-size: clamp(0.85rem, 3vw, 1.1rem);
+  color: #999;
+  margin-top: 2px;
+  min-height: 1.2em;
+}
 .countdown {
   font-size: clamp(2rem, 9vw, 3.8rem);
   font-weight: bold;
@@ -672,6 +678,7 @@ html, body {
 
   <div class="next-event-area">
     <div id="next-event-name" class="next-event-name">よていなし</div>
+    <div id="event-time" class="event-time"></div>
     <div id="countdown" class="countdown"></div>
   </div>
 
@@ -1125,6 +1132,7 @@ const $eventList   = document.getElementById('event-list');
 const $currentTime  = document.getElementById('current-time');
 const $currentDate  = document.getElementById('current-date');
 const $nextName     = document.getElementById('next-event-name');
+const $eventTime    = document.getElementById('event-time');
 const $countdown    = document.getElementById('countdown');
 const $charImg      = document.getElementById('character-img');
 const $charFallback = document.getElementById('character-fallback');
@@ -1437,8 +1445,9 @@ function _updateCountdown(next) {
   _currentNext = next;
 
   if (!next) {
-    $nextName.textContent  = 'よていなし';
-    $countdown.textContent = '';
+    $nextName.textContent   = 'よていなし';
+    $eventTime.textContent  = '';
+    $countdown.textContent  = '';
     $btnDoneEarly.classList.add('hidden');
     // panic / ontimeフェーズ中でなければ normalに戻す
     if (_phase !== 'panic' && _phase !== 'ontime') setPhase('normal');
@@ -1446,7 +1455,8 @@ function _updateCountdown(next) {
   }
 
   const { event, remainMs, phase } = next;
-  $nextName.textContent = event.name;
+  $nextName.textContent  = event.name;
+  $eventTime.textContent = '設定時刻：' + event.time;
 
   if (remainMs >= 0) {
     $countdown.textContent = 'あと ' + msToCountdown(remainMs);
