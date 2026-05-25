@@ -1495,18 +1495,6 @@ function _launchConfetti() {
   }
 }
 
-// ---- 音声テストボタン ----
-  const btn = document.getElementById(btnId);
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    const text = inputEl.value.trim();
-    if (!text) { alert('メッセージを入力してからテストしてください'); return; }
-    btn.classList.add('playing');
-    speak(text, mood);
-    const dur = Math.max(1500, text.length * 200 + 1000);
-    setTimeout(() => btn.classList.remove('playing'), dur);
-  });
-}
 
 // ---- 通知フラグリセットボタン ----
 document.getElementById('btn-reset-fired').addEventListener('click', () => {
