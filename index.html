@@ -1200,6 +1200,40 @@ async function _playSound(path) {
   } catch(e) { console.warn('[sfx]', e); }
 }
 
+// ---- BGM ----
+let _bgmNode = null;
+let _bgmGain = null;
+const _bgmCache = {};
+async function _playBgm(path) {
+  _stopBgm();
+  try {
+    const ctx = _getSfxCtx();
+    if (ctx.state === 'suspended') await ctx.resume();
+    if (!_bgmCache[path]) {
+      const res = await fetch(path);
+      _bgmCache[path] = await ctx.decodeAudioData(await res.arrayBuffer());
+    }
+    _bgmGain = ctx.createGain();
+    _bgmGain.gain.value = 0.5;
+    _bgmGain.connect(ctx.destination);
+    const loop = () => {
+      _bgmNode = ctx.createBufferSource();
+      _bgmNode.buffer = _bgmCache[path];
+      _bgmNode.connect(_bgmGain);
+      _bgmNode.onended = () => { if (_bgmNode) loop(); };
+      _bgmNode.start();
+    };
+    loop();
+  } catch(e) { console.warn('[bgm]', e); }
+}
+function _stopBgm() {
+  if (_bgmNode) {
+    try { _bgmNode.onended = null; _bgmNode.stop(); } catch {}
+    _bgmNode = null;
+  }
+  _bgmGain = null;
+}
+
 // ---- 起動オーバーレイ ----
 $startupImg.src = CHARA.normal;
 $startupImg.onerror = () => { $startupImg.style.display = 'none'; };
@@ -1360,12 +1394,15 @@ function _onTick(now, next) {
 }
 
 function _onAlert(ev) {
+  _playBgm('./sounds/kawaii.mp3');
   setPhase('alert');
   _showNotif(ev.preMessage);
   speak(ev.preMessage, 'alert');
 }
 
 function _onOntime(ev) {
+  _stopBgm();
+  _playBgm('./sounds/dash.mp3');
   if (_junbiDone.has(ev.id)) {
     // 準備完了済み → 穏やかな時間お知らせ
     setPhase('ontime');
@@ -1439,6 +1476,7 @@ $btnDoneEarly.addEventListener('click', () => {
     _junbiDone.delete(_currentNext.event.id);
   }
   $btnDoneEarly.classList.add('hidden');
+  _stopBgm();
   _playSound('./sounds/kira.mp3');
   setPhase('normal');
   _showYattane();
@@ -1451,6 +1489,7 @@ $btnDone.addEventListener('click', () => {
   if (_phase === 'alert') {
     // 準備完了：normalに戻す（イベントは完了しない → 設定時刻にontimeが発火する）
     if (_currentNext) _junbiDone.add(_currentNext.event.id);
+    _stopBgm();
     _playSound('./sounds/yeah.mp3');
     setPhase('normal');
     _showJunbi();
@@ -1494,6 +1533,7 @@ function _showYattane() {
 }
 
 $btnCloseYattane.addEventListener('click', () => {
+  _stopBgm();
   $yattaneOverlay.classList.add('hidden');
 });
 
