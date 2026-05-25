@@ -652,6 +652,18 @@ html, body {
     <p class="hint-text">通知が来ない場合は「通知フラグをリセット」を押してください。</p>
     <button id="btn-reset-fired" class="btn btn-secondary">🔄 通知フラグをリセット</button>
   </div>
+
+  <div class="card">
+    <h2>📦 イベント設定のエクスポート / インポート</h2>
+    <p class="hint-text">設定をCSVファイルで保存・復元できます。</p>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;">
+      <button id="btn-export-csv" class="btn btn-secondary">⬇ エクスポート</button>
+      <label class="btn btn-secondary" style="cursor:pointer;">
+        ⬆ インポート
+        <input type="file" id="input-import-csv" accept=".csv" style="display:none;">
+      </label>
+    </div>
+  </div>
 </div>
 
 <!-- ===== 表示画面（子供用） ===== -->
@@ -1578,6 +1590,102 @@ document.getElementById('btn-reset-fired').addEventListener('click', () => {
   resetFiredToday();
   alert('通知フラグをリセットしました。\n次の設定時刻から通知されます。');
 });
+
+// ---- CSV エクスポート ----
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  const events = loadEvents();
+  const CSV_HEADER = 'イベント名,時刻,繰り返し,事前通知(分),事前通知メッセージ,時刻メッセージ,完了メッセージ';
+  const rows = events.map(ev => {
+    const daysStr = (ev.days && ev.days.length > 0)
+      ? ev.days.map(d => DAY_NAMES[d]).join('')
+      : '毎日';
+    const escape = s => '"' + String(s ?? '').replace(/"/g, '""') + '"';
+    return [
+      escape(ev.name),
+      escape(ev.time),
+      escape(daysStr),
+      escape(ev.alertBefore ?? 0),
+      escape(ev.preMessage ?? ''),
+      escape(ev.onTimeMessage ?? ''),
+      escape(ev.doneMessage ?? ''),
+    ].join(',');
+  });
+  const csv = '﻿' + [CSV_HEADER, ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'obungu_events.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---- CSV インポート ----
+document.getElementById('input-import-csv').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const text = ev.target.result.replace(/^﻿/, '');
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { alert('データがありません。'); return; }
+      const parsed = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = _parseCsvLine(lines[i]);
+        if (cols.length < 7) continue;
+        const [name, time, daysStr, alertBeforeStr, preMessage, onTimeMessage, doneMessage] = cols;
+        const days = daysStr === '毎日' || daysStr === ''
+          ? []
+          : daysStr.split('').map(c => DAY_NAMES.indexOf(c)).filter(d => d >= 0);
+        parsed.push({
+          id: Date.now().toString() + i,
+          name: name || 'イベント',
+          time: time || '00:00',
+          days,
+          alertBefore: parseInt(alertBeforeStr, 10) || 0,
+          preMessage: preMessage || '',
+          onTimeMessage: onTimeMessage || '',
+          doneMessage: doneMessage || '',
+          enabled: true,
+        });
+      }
+      if (parsed.length === 0) { alert('読み込めるデータがありませんでした。'); return; }
+      if (!confirm(`${parsed.length}件のイベントを読み込みます。\n現在のデータに追加しますか？`)) return;
+      const existing = loadEvents();
+      saveEvents([...existing, ...parsed]);
+      _renderList();
+      alert(`${parsed.length}件のイベントをインポートしました。`);
+    } catch (err) {
+      alert('インポート中にエラーが発生しました。\n' + err.message);
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+function _parseCsvLine(line) {
+  const result = [];
+  let cur = '';
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else { inQuote = false; }
+      } else {
+        cur += c;
+      }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { result.push(cur); cur = ''; }
+      else { cur += c; }
+    }
+  }
+  result.push(cur);
+  return result;
+}
 
 // ---- 初期化 ----
 
