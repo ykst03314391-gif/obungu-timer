@@ -351,6 +351,26 @@ html, body {
 }
 .btn-done:active { transform: scale(0.93); }
 .btn-done.hidden { display: none; }
+
+/* 準備完了後・時刻前の早期完了ボタン */
+.btn-done-early {
+  margin-top: 14px;
+  padding: 12px 36px;
+  background: linear-gradient(135deg, #43A047, #66BB6A);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-size: clamp(1rem, 4vw, 1.4rem);
+  font-family: var(--font);
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(67,160,71,0.4);
+  animation: pulse-green 2s ease-in-out infinite;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.btn-done-early:active { transform: scale(0.93); }
+.btn-done-early.hidden { display: none; }
+
 @keyframes pulse-green {
   0%, 100% { box-shadow: 0 6px 20px rgba(67,160,71,0.45); transform: scale(1); }
   50%       { box-shadow: 0 8px 28px rgba(67,160,71,0.7);  transform: scale(1.04); }
@@ -647,6 +667,8 @@ html, body {
     <div id="next-event-name" class="next-event-name">よていなし</div>
     <div id="countdown" class="countdown"></div>
   </div>
+
+  <button id="btn-done-early" class="btn-done-early hidden">できた！ ✅</button>
 
   <button id="btn-done" class="btn-done hidden">できた！ ✅</button>
 
@@ -1213,6 +1235,7 @@ const CHARA_KEY = 'obungu_chara_index';
 const _charaIdx = (parseInt(localStorage.getItem(CHARA_KEY) ?? '-1', 10) + 1) % CHARACTERS.length;
 localStorage.setItem(CHARA_KEY, _charaIdx);
 const CHARA = CHARACTERS[_charaIdx];
+let _currentChara = CHARA; // 完了時に次キャラへ切り替わる
 
 // ---- DOM ----
 const $settings    = document.getElementById('screen-settings');
@@ -1242,6 +1265,7 @@ const $charImg      = document.getElementById('character-img');
 const $charFallback = document.getElementById('character-fallback');
 const $charEmoji    = document.getElementById('character-emoji');
 const $btnDone      = document.getElementById('btn-done');
+const $btnDoneEarly = document.getElementById('btn-done-early');
 
 // オーバーレイ
 const $notifOverlay = document.getElementById('notification-overlay');
@@ -1265,7 +1289,7 @@ function setPhase(phase) {
   if (phase === 'ontime') $display.classList.add('phase-ontime');
 
   // キャラクター画像
-  const src = phase === 'panic' ? ZELLY : CHARA[phase] || CHARA.normal;
+  const src = phase === 'panic' ? ZELLY : _currentChara[phase] || _currentChara.normal;
   setCharImg(src);
 
   // 絵文字フォールバック
@@ -1496,6 +1520,7 @@ function _updateCountdown(next) {
   if (!next) {
     $nextName.textContent  = 'よていなし';
     $countdown.textContent = '';
+    $btnDoneEarly.classList.add('hidden');
     // panic / ontimeフェーズ中でなければ normalに戻す
     if (_phase !== 'panic' && _phase !== 'ontime') setPhase('normal');
     return;
@@ -1509,6 +1534,10 @@ function _updateCountdown(next) {
   } else {
     $countdown.textContent = '+' + msToCountdown(remainMs);
   }
+
+  // 準備完了済み・時刻前・通常フェーズなら早期完了ボタンを表示
+  const showEarly = _junbiDone.has(event.id) && remainMs > 0 && _phase === 'normal';
+  $btnDoneEarly.classList.toggle('hidden', !showEarly);
 }
 
 // ---- 通知ポップアップ ----
@@ -1521,6 +1550,17 @@ function _showNotif(message, gentle = false) {
 $btnCloseNotif.addEventListener('click', () => {
   $notifOverlay.classList.add('hidden');
   $notifOverlay.classList.remove('notif-ontime');
+});
+
+// ---- 早期完了ボタン（準備完了後・時刻前） ----
+$btnDoneEarly.addEventListener('click', () => {
+  if (_currentNext) {
+    markEventDone(_currentNext.event.id);
+    _junbiDone.delete(_currentNext.event.id);
+  }
+  $btnDoneEarly.classList.add('hidden');
+  setPhase('normal');
+  _showYattane();
 });
 
 // ---- 準備完了 / できた！ボタン ----
@@ -1551,12 +1591,21 @@ function _showJunbi() {
   _junbiTimer = setTimeout(() => $junbiOverlay.classList.add('hidden'), 3000);
 }
 
+// ---- キャラクターを次に進める ----
+function _advanceChara() {
+  const nextIdx = (parseInt(localStorage.getItem(CHARA_KEY) ?? '0', 10) + 1) % CHARACTERS.length;
+  localStorage.setItem(CHARA_KEY, nextIdx);
+  _currentChara = CHARACTERS[nextIdx];
+}
+
 // ---- やったね！ ----
 function _showYattane() {
-  $yattaneChara.src = CHARA.alert;
+  _advanceChara();
+  $yattaneChara.src = _currentChara.alert;
   _launchConfetti();
   $yattaneOverlay.classList.remove('hidden');
   speak('やったね！えらい！すごい！', 'normal');
+  // やったね画面を閉じた後 setPhase('normal') で _currentChara.normal が反映される
 }
 
 $btnCloseYattane.addEventListener('click', () => {
