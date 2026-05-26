@@ -613,20 +613,21 @@ html, body {
   margin-bottom: 28px;
 }
 .timer-input {
-  width: 100px;
-  font-size: 3rem;
+  width: 130px;
+  font-size: 2.4rem;
   font-family: var(--font);
   font-weight: bold;
   text-align: center;
   border: 3px solid #FFB74D;
   border-radius: 16px;
-  padding: 8px;
+  padding: 8px 4px;
   color: #333;
   outline: none;
+  box-sizing: border-box;
 }
 .timer-input:focus { border-color: var(--primary); }
 .timer-unit {
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   color: #666;
 }
 .timer-display {
@@ -637,6 +638,62 @@ html, body {
   margin-bottom: 32px;
   font-variant-numeric: tabular-nums;
 }
+/* 本体画面上のタイマー表示バー */
+.timer-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-width: calc(100vw - 48px);
+  box-sizing: border-box;
+}
+.timer-bar.hidden { display: none; }
+.timer-bar-label {
+  font-size: 0.85rem;
+  color: #999;
+}
+.timer-bar-time {
+  font-size: clamp(1.8rem, 7vw, 2.6rem);
+  font-weight: bold;
+  color: var(--primary);
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.timer-bar-btns {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.timer-bar-done {
+  padding: 8px 22px;
+  background: linear-gradient(135deg, #43A047, #66BB6A);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 1rem;
+  font-family: var(--font);
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(67,160,71,0.4);
+}
+.timer-bar-done:active { transform: scale(0.93); }
+.timer-bar-stop {
+  padding: 8px 16px;
+  background: #eee;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-family: var(--font);
+  cursor: pointer;
+  color: #666;
+}
+.timer-bar-stop:active { background: #ddd; }
 
 /* ===== レスポンシブ ===== */
 @media (max-width: 520px) {
@@ -765,14 +822,11 @@ html, body {
         <input type="number" id="timer-minutes" min="1" max="99" value="20" class="timer-input">
         <span class="timer-unit">ふん</span>
       </div>
+      <input type="text" id="timer-message" placeholder="できたらひょうじするメッセージ（任意）" maxlength="40"
+        style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:12px;font-size:1rem;font-family:var(--font);margin-bottom:20px;outline:none;box-sizing:border-box;">
       <button id="btn-timer-start" class="btn btn-primary btn-large">スタート</button>
       <br>
       <button id="btn-timer-cancel-setup" class="btn btn-secondary" style="margin-top:12px">とじる</button>
-    </div>
-    <div id="timer-running" class="timer-box hidden">
-      <div class="timer-title">のこりじかん</div>
-      <div id="timer-display" class="timer-display">20:00</div>
-      <button id="btn-timer-stop" class="btn btn-secondary btn-large">やめる</button>
     </div>
   </div>
 
@@ -790,6 +844,15 @@ html, body {
     <div id="next-event-name" class="next-event-name">よていなし</div>
     <div id="event-time" class="event-time"></div>
     <div id="countdown" class="countdown"></div>
+  </div>
+
+  <div id="timer-bar" class="timer-bar hidden">
+    <div class="timer-bar-label">のこりじかん</div>
+    <div id="timer-bar-time" class="timer-bar-time">20:00</div>
+    <div class="timer-bar-btns">
+      <button id="btn-timer-done" class="timer-bar-done">できた！✅</button>
+      <button id="btn-timer-stop" class="timer-bar-stop">やめる</button>
+    </div>
   </div>
 
   <button id="btn-done-early" class="btn-done-early hidden">できた！ ✅</button>
@@ -1644,9 +1707,9 @@ function _advanceChara() {
 
 
 // ---- やったね！ ----
-function _showYattane() {
+function _showYattane(overrideMsg) {
   const ev  = _currentNext ? _currentNext.event : null;
-  const msg = (ev && ev.doneMessage) ? ev.doneMessage : 'えらい！すごい！';
+  const msg = overrideMsg != null ? overrideMsg : (ev && ev.doneMessage) ? ev.doneMessage : 'えらい！すごい！';
   document.getElementById('yattane-sub').textContent = msg;
   $yattaneChara.src = _currentChara.alert;
   _launchConfetti();
@@ -1788,16 +1851,16 @@ function _parseCsvLine(line) {
 // ---- 単発タイマー ----
 let _timerInterval  = null;
 let _timerRemaining = 0;
+let _timerMessage   = '';
 
 const $timerOverlay      = document.getElementById('timer-overlay');
 const $timerSetupBox     = document.getElementById('timer-setup');
-const $timerRunningBox   = document.getElementById('timer-running');
-const $timerDisplay      = document.getElementById('timer-display');
 const $timerMinutesInput = document.getElementById('timer-minutes');
+const $timerMsgInput     = document.getElementById('timer-message');
+const $timerBar          = document.getElementById('timer-bar');
+const $timerBarTime      = document.getElementById('timer-bar-time');
 
 document.getElementById('btn-open-timer').addEventListener('click', () => {
-  $timerSetupBox.classList.remove('hidden');
-  $timerRunningBox.classList.add('hidden');
   $timerOverlay.classList.remove('hidden');
 });
 
@@ -1807,39 +1870,45 @@ document.getElementById('btn-timer-cancel-setup').addEventListener('click', () =
 
 document.getElementById('btn-timer-start').addEventListener('click', () => {
   const mins = Math.max(1, Math.min(99, parseInt($timerMinutesInput.value) || 1));
+  _timerMessage   = $timerMsgInput.value.trim();
   _timerRemaining = mins * 60;
-  _updateTimerDisplay();
-  $timerSetupBox.classList.add('hidden');
-  $timerRunningBox.classList.remove('hidden');
+  _updateTimerBar();
+  $timerOverlay.classList.add('hidden');
+  $timerBar.classList.remove('hidden');
   clearInterval(_timerInterval);
   _timerInterval = setInterval(_timerTick, 1000);
 });
 
+document.getElementById('btn-timer-done').addEventListener('click', () => {
+  _timerClear();
+  _showYattane(_timerMessage || null);
+});
+
 document.getElementById('btn-timer-stop').addEventListener('click', () => {
   _timerClear();
-  $timerOverlay.classList.add('hidden');
 });
 
 function _timerTick() {
   _timerRemaining--;
   if (_timerRemaining <= 0) {
     _timerClear();
-    $timerOverlay.classList.add('hidden');
-    _showYattane();
+    setPhase('panic');
+    _playBgm('./sounds/dash.mp3');
     return;
   }
-  _updateTimerDisplay();
+  _updateTimerBar();
 }
 
 function _timerClear() {
   clearInterval(_timerInterval);
   _timerInterval = null;
+  $timerBar.classList.add('hidden');
 }
 
-function _updateTimerDisplay() {
+function _updateTimerBar() {
   const m = Math.floor(_timerRemaining / 60);
   const s = _timerRemaining % 60;
-  $timerDisplay.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  $timerBarTime.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
 // ---- 初期化 ----
