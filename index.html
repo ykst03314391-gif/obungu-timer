@@ -626,6 +626,19 @@ html, body {
   box-sizing: border-box;
 }
 .timer-input:focus { border-color: var(--primary); }
+.timer-preset {
+  padding: 8px 18px;
+  background: #FFF3E0;
+  border: 2px solid #FFB74D;
+  border-radius: 20px;
+  font-size: 1rem;
+  font-family: var(--font);
+  font-weight: bold;
+  color: #E65100;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.timer-preset:active, .timer-preset.selected { background: #FFB74D; color: white; }
 .timer-unit {
   font-size: 1.4rem;
   color: #666;
@@ -824,12 +837,17 @@ html, body {
 
   <div id="timer-overlay" class="timer-overlay hidden">
     <div id="timer-setup" class="timer-box">
-      <div class="timer-title">タイマー</div>
+      <div class="timer-title">単発タイマー</div>
       <div class="timer-input-row">
-        <input type="number" id="timer-minutes" min="1" max="99" value="20" class="timer-input">
-        <span class="timer-unit">ふん</span>
+        <input type="number" id="timer-minutes" min="1" max="99" placeholder="--" class="timer-input">
+        <span class="timer-unit">分</span>
       </div>
-      <input type="text" id="timer-message" placeholder="できたらひょうじするメッセージ（任意）" maxlength="40"
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;">
+        <button type="button" class="timer-preset" data-min="5">5分</button>
+        <button type="button" class="timer-preset" data-min="15">15分</button>
+        <button type="button" class="timer-preset" data-min="30">30分</button>
+      </div>
+      <input type="text" id="timer-message" placeholder="イベント名" maxlength="40"
         style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:12px;font-size:1rem;font-family:var(--font);margin-bottom:20px;outline:none;box-sizing:border-box;">
       <button id="btn-timer-start" class="btn btn-primary btn-large">スタート</button>
       <br>
@@ -1871,6 +1889,14 @@ const $timerBarName      = document.getElementById('timer-bar-name');
 
 document.getElementById('btn-open-timer').addEventListener('click', () => {
   $timerOverlay.classList.remove('hidden');
+});
+
+document.querySelectorAll('.timer-preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $timerMinutesInput.value = btn.dataset.min;
+    document.querySelectorAll('.timer-preset').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
 });
 
 document.getElementById('btn-timer-cancel-setup').addEventListener('click', () => {
