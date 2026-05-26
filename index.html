@@ -1049,8 +1049,8 @@ function insertPauses(text) {
  * @param {string} text
  * @param {'normal'|'alert'|'panic'} mood
  */
-function speak(text, mood = 'normal') {
-  if (!('speechSynthesis' in window) || !text) return;
+function speak(text, mood = 'normal', onEnd = null) {
+  if (!('speechSynthesis' in window) || !text) { onEnd?.(); return; }
   speechSynthesis.cancel();
 
   const utter  = new SpeechSynthesisUtterance(insertPauses(text));
@@ -1074,6 +1074,7 @@ function speak(text, mood = 'normal') {
       utter.volume = 0.90;
   }
 
+  if (onEnd) utter.onend = onEnd;
   speechSynthesis.speak(utter);
 }
 
@@ -1493,8 +1494,7 @@ $btnSave.addEventListener('click', () => {
   if (!name)          { alert('イベント名を入力してください'); return; }
   if (!time)          { alert('時刻を選択してください'); return; }
   if (!days.length)   { alert('曜日を選択してください'); return; }
-  if (!preMessage)    { alert('事前通知メッセージを入力してください'); return; }
-  if (!onTimeMessage) { alert('時刻ちょうどのメッセージを入力してください'); return; }
+
 
   if (_editingId) {
     updateEvent(_editingId, { name, time, days, alertBefore, preMessage, onTimeMessage, doneMessage });
@@ -1603,25 +1603,38 @@ function _onTick(now, next) {
 }
 
 function _onAlert(ev) {
-  _playBgm('./sounds/kb.m4a');
   setPhase('alert');
-  _showNotif(ev.preMessage);
-  speak(ev.preMessage, 'alert');
+  if (ev.preMessage) {
+    _showNotif(ev.preMessage);
+    speak(ev.preMessage, 'alert', () => _playBgm('./sounds/kb.m4a'));
+  } else {
+    _showNotif('そろそろ時間だよ！');
+    _playBgm('./sounds/kb.m4a');
+  }
 }
 
 function _onOntime(ev) {
   _stopBgm();
-  _playBgm('./sounds/dash.mp3');
   if (_junbiDone.has(ev.id)) {
     // 準備完了済み → 穏やかな時間お知らせ
     setPhase('ontime');
-    _showNotif(ev.onTimeMessage, true);
-    speak(ev.onTimeMessage, 'alert');
+    if (ev.onTimeMessage) {
+      _showNotif(ev.onTimeMessage, true);
+      speak(ev.onTimeMessage, 'alert', () => _playBgm('./sounds/dash.mp3'));
+    } else {
+      _showNotif('時間になったよ！', true);
+      _playBgm('./sounds/dash.mp3');
+    }
   } else {
     // 未準備 → パニック
     setPhase('panic');
-    _showNotif(ev.onTimeMessage);
-    speak(ev.onTimeMessage, 'panic');
+    if (ev.onTimeMessage) {
+      _showNotif(ev.onTimeMessage);
+      speak(ev.onTimeMessage, 'panic', () => _playBgm('./sounds/dash.mp3'));
+    } else {
+      _showNotif('時間になったよ！');
+      _playBgm('./sounds/dash.mp3');
+    }
   }
 }
 
