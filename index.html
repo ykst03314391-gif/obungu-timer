@@ -561,6 +561,83 @@ html, body {
   margin-bottom: 24px;
 }
 
+/* ===== 単発タイマー ===== */
+.btn-timer {
+  position: absolute;
+  top: 16px; right: 16px;
+  background: rgba(255,255,255,0.75);
+  border: none;
+  border-radius: 50%;
+  width: 44px; height: 44px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 10;
+}
+.btn-timer:hover { background: rgba(255,255,255,0.95); }
+
+.timer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 24px;
+}
+.timer-overlay.hidden { display: none; }
+
+.timer-box {
+  background: white;
+  border-radius: 28px;
+  padding: 40px 32px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.timer-box.hidden { display: none; }
+.timer-title {
+  font-size: clamp(1.4rem, 6vw, 2rem);
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 24px;
+}
+.timer-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.timer-input {
+  width: 100px;
+  font-size: 3rem;
+  font-family: var(--font);
+  font-weight: bold;
+  text-align: center;
+  border: 3px solid #FFB74D;
+  border-radius: 16px;
+  padding: 8px;
+  color: #333;
+  outline: none;
+}
+.timer-input:focus { border-color: var(--primary); }
+.timer-unit {
+  font-size: 1.6rem;
+  color: #666;
+}
+.timer-display {
+  font-size: clamp(3.5rem, 16vw, 6rem);
+  font-weight: bold;
+  color: var(--primary);
+  letter-spacing: 4px;
+  margin-bottom: 32px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ===== レスポンシブ ===== */
 @media (max-width: 520px) {
   .form-grid { grid-template-columns: 1fr; }
@@ -679,6 +756,25 @@ html, body {
   </div>
 
   <button id="btn-to-settings" class="btn-back">⚙️</button>
+  <button id="btn-open-timer" class="btn-timer">⏱</button>
+
+  <div id="timer-overlay" class="timer-overlay hidden">
+    <div id="timer-setup" class="timer-box">
+      <div class="timer-title">タイマー</div>
+      <div class="timer-input-row">
+        <input type="number" id="timer-minutes" min="1" max="99" value="20" class="timer-input">
+        <span class="timer-unit">ふん</span>
+      </div>
+      <button id="btn-timer-start" class="btn btn-primary btn-large">スタート</button>
+      <br>
+      <button id="btn-timer-cancel-setup" class="btn btn-secondary" style="margin-top:12px">とじる</button>
+    </div>
+    <div id="timer-running" class="timer-box hidden">
+      <div class="timer-title">のこりじかん</div>
+      <div id="timer-display" class="timer-display">20:00</div>
+      <button id="btn-timer-stop" class="btn btn-secondary btn-large">やめる</button>
+    </div>
+  </div>
 
   <div id="current-date" class="current-date"></div>
   <div id="current-time" class="current-time">--:--</div>
@@ -1238,7 +1334,7 @@ async function _playBgm(path) {
       _bgmCache[path] = await ctx.decodeAudioData(await res.arrayBuffer());
     }
     _bgmGain = ctx.createGain();
-    _bgmGain.gain.value = 0.25;
+    _bgmGain.gain.value = 0.12;
     _bgmGain.connect(ctx.destination);
     const loop = () => {
       _bgmNode = ctx.createBufferSource();
@@ -1687,6 +1783,63 @@ function _parseCsvLine(line) {
   }
   result.push(cur);
   return result;
+}
+
+// ---- 単発タイマー ----
+let _timerInterval  = null;
+let _timerRemaining = 0;
+
+const $timerOverlay      = document.getElementById('timer-overlay');
+const $timerSetupBox     = document.getElementById('timer-setup');
+const $timerRunningBox   = document.getElementById('timer-running');
+const $timerDisplay      = document.getElementById('timer-display');
+const $timerMinutesInput = document.getElementById('timer-minutes');
+
+document.getElementById('btn-open-timer').addEventListener('click', () => {
+  $timerSetupBox.classList.remove('hidden');
+  $timerRunningBox.classList.add('hidden');
+  $timerOverlay.classList.remove('hidden');
+});
+
+document.getElementById('btn-timer-cancel-setup').addEventListener('click', () => {
+  $timerOverlay.classList.add('hidden');
+});
+
+document.getElementById('btn-timer-start').addEventListener('click', () => {
+  const mins = Math.max(1, Math.min(99, parseInt($timerMinutesInput.value) || 1));
+  _timerRemaining = mins * 60;
+  _updateTimerDisplay();
+  $timerSetupBox.classList.add('hidden');
+  $timerRunningBox.classList.remove('hidden');
+  clearInterval(_timerInterval);
+  _timerInterval = setInterval(_timerTick, 1000);
+});
+
+document.getElementById('btn-timer-stop').addEventListener('click', () => {
+  _timerClear();
+  $timerOverlay.classList.add('hidden');
+});
+
+function _timerTick() {
+  _timerRemaining--;
+  if (_timerRemaining <= 0) {
+    _timerClear();
+    $timerOverlay.classList.add('hidden');
+    _showYattane();
+    return;
+  }
+  _updateTimerDisplay();
+}
+
+function _timerClear() {
+  clearInterval(_timerInterval);
+  _timerInterval = null;
+}
+
+function _updateTimerDisplay() {
+  const m = Math.floor(_timerRemaining / 60);
+  const s = _timerRemaining % 60;
+  $timerDisplay.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
 // ---- 初期化 ----
