@@ -1552,7 +1552,6 @@ function _showYattane() {
   const ev  = _currentNext ? _currentNext.event : null;
   const msg = (ev && ev.doneMessage) ? ev.doneMessage : 'えらい！すごい！';
   document.getElementById('yattane-sub').textContent = msg;
-  _advanceChara();
   $yattaneChara.src = _currentChara.alert;
   _launchConfetti();
   $yattaneOverlay.classList.remove('hidden');
@@ -1562,6 +1561,7 @@ function _showYattane() {
 $btnCloseYattane.addEventListener('click', () => {
   _stopBgm();
   $yattaneOverlay.classList.add('hidden');
+  _advanceChara();
 });
 
 function _launchConfetti() {
