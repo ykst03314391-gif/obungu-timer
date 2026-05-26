@@ -1891,6 +1891,12 @@ document.getElementById('btn-open-timer').addEventListener('click', () => {
   $timerOverlay.classList.remove('hidden');
 });
 
+$timerMinutesInput.addEventListener('input', () => {
+  if ($timerMinutesInput.value.length > 2) {
+    $timerMinutesInput.value = $timerMinutesInput.value.slice(0, 2);
+  }
+});
+
 document.querySelectorAll('.timer-preset').forEach(btn => {
   btn.addEventListener('click', () => {
     $timerMinutesInput.value = btn.dataset.min;
