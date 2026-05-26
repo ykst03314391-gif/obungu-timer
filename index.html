@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" href="data:,">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="お文具タイマー">
   <title>お文具タイマー</title>
@@ -1236,7 +1238,7 @@ async function _playBgm(path) {
       _bgmCache[path] = await ctx.decodeAudioData(await res.arrayBuffer());
     }
     _bgmGain = ctx.createGain();
-    _bgmGain.gain.value = 0.5;
+    _bgmGain.gain.value = 0.25;
     _bgmGain.connect(ctx.destination);
     const loop = () => {
       _bgmNode = ctx.createBufferSource();
