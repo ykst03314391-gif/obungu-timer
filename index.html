@@ -848,7 +848,7 @@ html, body {
         <button type="button" class="timer-preset" data-min="30">30分</button>
       </div>
       <input type="text" id="timer-message" placeholder="イベント名" maxlength="40"
-        style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:12px;font-size:1rem;font-family:var(--font);margin-bottom:20px;outline:none;box-sizing:border-box;">
+        style="width:100%;padding:10px 14px;border:2px solid #FFB74D;border-radius:12px;font-size:1rem;font-family:var(--font);margin-bottom:20px;outline:none;box-sizing:border-box;background:#FFFDE7;">
       <button id="btn-timer-start" class="btn btn-primary btn-large">スタート</button>
       <br>
       <button id="btn-timer-cancel-setup" class="btn btn-secondary" style="margin-top:12px">とじる</button>
@@ -1688,7 +1688,7 @@ $btnDoneEarly.addEventListener('click', () => {
   }
   $btnDoneEarly.classList.add('hidden');
   _stopBgm();
-  _playSound('./sounds/kira.mp3');
+  _playSound('./sounds/clear.m4a');
   setPhase('normal');
   _showYattane();
 });
@@ -1708,7 +1708,7 @@ $btnDone.addEventListener('click', () => {
     // できた！：イベントを完了マーク
     if (_currentNext) markEventDone(_currentNext.event.id);
     _stopBgm();
-    _playSound('./sounds/kira.mp3');
+    _playSound('./sounds/clear.m4a');
     setPhase('normal');
     _showYattane();
   }
@@ -1878,17 +1878,23 @@ function _parseCsvLine(line) {
 let _timerInterval  = null;
 let _timerRemaining = 0;
 let _timerMessage   = '';
+let _timerExpired   = false;
 
 const $timerOverlay      = document.getElementById('timer-overlay');
-const $timerSetupBox     = document.getElementById('timer-setup');
 const $timerMinutesInput = document.getElementById('timer-minutes');
 const $timerMsgInput     = document.getElementById('timer-message');
 const $timerBar          = document.getElementById('timer-bar');
 const $timerBarTime      = document.getElementById('timer-bar-time');
 const $timerBarName      = document.getElementById('timer-bar-name');
+const $timerBarLabel     = $timerBar.querySelector('.timer-bar-label');
+const $btnTimerDone      = document.getElementById('btn-timer-done');
 
 document.getElementById('btn-open-timer').addEventListener('click', () => {
   $timerOverlay.classList.remove('hidden');
+});
+
+document.getElementById('btn-timer-cancel-setup').addEventListener('click', () => {
+  $timerOverlay.classList.add('hidden');
 });
 
 $timerMinutesInput.addEventListener('input', () => {
@@ -1903,10 +1909,6 @@ document.querySelectorAll('.timer-preset').forEach(btn => {
     document.querySelectorAll('.timer-preset').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
   });
-});
-
-document.getElementById('btn-timer-cancel-setup').addEventListener('click', () => {
-  $timerOverlay.classList.add('hidden');
 });
 
 document.getElementById('btn-timer-start').addEventListener('click', () => {
@@ -1926,19 +1928,29 @@ document.getElementById('btn-timer-start').addEventListener('click', () => {
   _timerInterval = setInterval(_timerTick, 1000);
 });
 
-document.getElementById('btn-timer-done').addEventListener('click', () => {
-  _timerClear();
+$btnTimerDone.addEventListener('click', () => {
+  _playSound('./sounds/clear.m4a');
+  _timerEnd();
   _showYattane(_timerMessage || null);
 });
 
 document.getElementById('btn-timer-stop').addEventListener('click', () => {
-  _timerClear();
+  if (_timerExpired) {
+    _stopBgm();
+    setPhase('normal');
+  }
+  _timerEnd();
 });
 
 function _timerTick() {
   _timerRemaining--;
   if (_timerRemaining <= 0) {
-    _timerClear();
+    clearInterval(_timerInterval);
+    _timerInterval = null;
+    _timerExpired = true;
+    $timerBarTime.textContent = '00:00';
+    $timerBarLabel.textContent = 'じかんがきたよ！';
+    $btnTimerDone.classList.add('hidden');
     setPhase('panic');
     _playBgm('./sounds/dash.mp3');
     return;
@@ -1946,10 +1958,16 @@ function _timerTick() {
   _updateTimerBar();
 }
 
-function _timerClear() {
+function _timerEnd() {
   clearInterval(_timerInterval);
   _timerInterval = null;
+  _timerExpired = false;
   $timerBar.classList.add('hidden');
+  $timerBarLabel.textContent = 'のこりじかん';
+  $btnTimerDone.classList.remove('hidden');
+  $timerMinutesInput.value = '';
+  $timerMsgInput.value = '';
+  document.querySelectorAll('.timer-preset').forEach(b => b.classList.remove('selected'));
 }
 
 function _updateTimerBar() {
