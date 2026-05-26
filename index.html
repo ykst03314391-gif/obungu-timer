@@ -654,6 +654,13 @@ html, body {
   box-sizing: border-box;
 }
 .timer-bar.hidden { display: none; }
+.timer-bar-name {
+  font-size: clamp(1rem, 4vw, 1.3rem);
+  font-weight: bold;
+  color: #555;
+  margin-bottom: 2px;
+}
+.timer-bar-name.hidden { display: none; }
 .timer-bar-label {
   font-size: 0.85rem;
   color: #999;
@@ -847,6 +854,7 @@ html, body {
   </div>
 
   <div id="timer-bar" class="timer-bar hidden">
+    <div id="timer-bar-name" class="timer-bar-name hidden"></div>
     <div class="timer-bar-label">のこりじかん</div>
     <div id="timer-bar-time" class="timer-bar-time">20:00</div>
     <div class="timer-bar-btns">
@@ -1859,6 +1867,7 @@ const $timerMinutesInput = document.getElementById('timer-minutes');
 const $timerMsgInput     = document.getElementById('timer-message');
 const $timerBar          = document.getElementById('timer-bar');
 const $timerBarTime      = document.getElementById('timer-bar-time');
+const $timerBarName      = document.getElementById('timer-bar-name');
 
 document.getElementById('btn-open-timer').addEventListener('click', () => {
   $timerOverlay.classList.remove('hidden');
@@ -1873,6 +1882,12 @@ document.getElementById('btn-timer-start').addEventListener('click', () => {
   _timerMessage   = $timerMsgInput.value.trim();
   _timerRemaining = mins * 60;
   _updateTimerBar();
+  if (_timerMessage) {
+    $timerBarName.textContent = _timerMessage;
+    $timerBarName.classList.remove('hidden');
+  } else {
+    $timerBarName.classList.add('hidden');
+  }
   $timerOverlay.classList.add('hidden');
   $timerBar.classList.remove('hidden');
   clearInterval(_timerInterval);
