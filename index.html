@@ -576,6 +576,103 @@ html, body {
 }
 .btn-timer:hover { background: rgba(255,255,255,0.95); }
 
+.btn-video {
+  position: absolute;
+  top: 68px; right: 16px;
+  background: rgba(255,255,255,0.75);
+  border: none;
+  border-radius: 50%;
+  width: 44px; height: 44px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 10;
+}
+.btn-video:hover { background: rgba(255,255,255,0.95); }
+
+.video-select-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+.video-select-overlay.hidden { display: none; }
+
+.video-select-title {
+  font-size: clamp(1.4rem, 6vw, 2rem);
+  font-weight: bold;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.video-select-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.btn-video-chara {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 1.2rem;
+  font-family: var(--font);
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  text-align: left;
+}
+.btn-video-chara:active { transform: scale(0.97); background: #f0f0f0; }
+.video-chara-img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.video-player-overlay {
+  position: fixed;
+  inset: 0;
+  background: black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 350;
+}
+.video-player-overlay.hidden { display: none; }
+
+.video-player-overlay video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.btn-video-back {
+  position: absolute;
+  top: 16px; left: 16px;
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 50%;
+  width: 48px; height: 48px;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: white;
+  z-index: 10;
+  transition: background 0.2s;
+}
+.btn-video-back:hover { background: rgba(255,255,255,0.4); }
+
 .timer-overlay {
   position: fixed;
   inset: 0;
@@ -834,6 +931,7 @@ html, body {
 
   <button id="btn-to-settings" class="btn-back">⚙️</button>
   <button id="btn-open-timer" class="btn-timer">⏱</button>
+  <button id="btn-open-video" class="btn-video">🎬</button>
 
   <div id="timer-overlay" class="timer-overlay hidden">
     <div id="timer-setup" class="timer-box">
@@ -908,6 +1006,32 @@ html, body {
       <div id="yattane-sub" class="yattane-sub">えらい！すごい！</div>
       <button id="btn-close-yattane" class="btn btn-primary btn-large">とじる</button>
     </div>
+  </div>
+
+  <!-- 動画選択オーバーレイ -->
+  <div id="video-select-overlay" class="video-select-overlay hidden">
+    <div class="video-select-title">🎬 さくぎょうどうが</div>
+    <div class="video-select-btns">
+      <button class="btn-video-chara" data-video="working_obu.mp4" data-chara="お文具さん">
+        <img class="video-chara-img" src="" alt="お文具さん">
+        <span>お文具さん</span>
+      </button>
+      <button class="btn-video-chara" data-video="working_prin.mp4" data-chara="プリンさん">
+        <img class="video-chara-img" src="" alt="プリンさん">
+        <span>プリンさん</span>
+      </button>
+      <button class="btn-video-chara" data-video="working_neko.mp4" data-chara="猫さん">
+        <img class="video-chara-img" src="" alt="猫さん">
+        <span>猫さん</span>
+      </button>
+    </div>
+    <button id="btn-video-select-close" class="btn btn-secondary" style="margin-top:24px;">とじる</button>
+  </div>
+
+  <!-- 動画プレイヤーオーバーレイ -->
+  <div id="video-player-overlay" class="video-player-overlay hidden">
+    <video id="work-video" loop playsinline></video>
+    <button id="btn-video-back" class="btn-video-back">←</button>
   </div>
 
 </div>
@@ -1148,6 +1272,17 @@ function removeDone(id) {
 function resetFiredToday() {
   _fired.clear();
   localStorage.removeItem(FIRED_KEY);
+  // 現在時刻より設定時刻が未来のイベントは完了フラグも解除する
+  const nowMs = Date.now();
+  const events = loadEvents().filter(isEventActiveToday);
+  let doneChanged = false;
+  for (const ev of events) {
+    if (_done.has(ev.id) && getEventDateToday(ev).getTime() > nowMs) {
+      _done.delete(ev.id);
+      doneChanged = true;
+    }
+  }
+  if (doneChanged) _saveDone();
 }
 
 // ---- タイマー ----
@@ -1413,9 +1548,12 @@ async function _playSound(path) {
 // ---- BGM ----
 let _bgmNode = null;
 let _bgmGain = null;
+let _currentBgmPath = null;
 const _bgmCache = {};
+
 async function _playBgm(path) {
-  _stopBgm();
+  _currentBgmPath = path;
+  _stopBgmNode();
   try {
     const ctx = _getSfxCtx();
     if (ctx.state === 'suspended') await ctx.resume();
@@ -1436,13 +1574,28 @@ async function _playBgm(path) {
     loop();
   } catch(e) { console.warn('[bgm]', e); }
 }
-function _stopBgm() {
+
+function _stopBgmNode() {
   if (_bgmNode) {
     try { _bgmNode.onended = null; _bgmNode.stop(); } catch {}
     _bgmNode = null;
   }
   _bgmGain = null;
 }
+
+function _stopBgm() {
+  _currentBgmPath = null;
+  _stopBgmNode();
+}
+
+// スリープ復帰時にBGMを再開
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  if (!_currentBgmPath) return;
+  const ctx = _getSfxCtx();
+  try { if (ctx.state === 'suspended') await ctx.resume(); } catch {}
+  if (!_bgmNode) _playBgm(_currentBgmPath);
+});
 
 // ---- 起動オーバーレイ ----
 $startupImg.src = CHARA.normal;
@@ -2000,6 +2153,40 @@ $charImg.onerror = () => {
 };
 
 _renderList();
+
+// ---- 作業用動画 ----
+document.querySelectorAll('.btn-video-chara[data-chara]').forEach(btn => {
+  const chara = CHARACTERS.find(c => c.name === btn.dataset.chara);
+  if (chara) btn.querySelector('.video-chara-img').src = chara.normal;
+});
+
+const $videoSelectOverlay = document.getElementById('video-select-overlay');
+const $videoPlayerOverlay = document.getElementById('video-player-overlay');
+const $workVideo          = document.getElementById('work-video');
+
+document.getElementById('btn-open-video').addEventListener('click', () => {
+  $videoSelectOverlay.classList.remove('hidden');
+});
+
+document.getElementById('btn-video-select-close').addEventListener('click', () => {
+  $videoSelectOverlay.classList.add('hidden');
+});
+
+document.querySelectorAll('.btn-video-chara').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $workVideo.src = btn.dataset.video;
+    $workVideo.load();
+    $workVideo.play();
+    $videoSelectOverlay.classList.add('hidden');
+    $videoPlayerOverlay.classList.remove('hidden');
+  });
+});
+
+document.getElementById('btn-video-back').addEventListener('click', () => {
+  $workVideo.pause();
+  $workVideo.src = '';
+  $videoPlayerOverlay.classList.add('hidden');
+});
 
 </script>
 </body>
